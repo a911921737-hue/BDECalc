@@ -6,10 +6,13 @@ __pycache__/
 
 # PyInstaller build
 build/
+
+# 打包的 exe
+BDE计算器.exe
 dist/BDE计算器.exe
 
-# 数据文件（保留，用于备份）
-# data/history.json 保留不忽略
+# 数据文件（保留用于追踪）
+# data/history.json 可以保留
 
 # IDE
 .vscode/
