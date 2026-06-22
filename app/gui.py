@@ -83,21 +83,42 @@ class BDEApp(ctk.CTk):
     # ══════════════════════════════════════════════════════
 
     def _build_header(self):
-        """iOS 风格导航栏"""
-        header = ctk.CTkFrame(self, height=46, corner_radius=0, fg_color=CARD_BG)
-        header.pack(fill="x", padx=0)
+        """macOS 风格标题栏"""
+        header = ctk.CTkFrame(self, height=52, corner_radius=0, fg_color=CARD_BG)
+        header.pack(fill="x", padx=0, pady=(0, 1))
         header.pack_propagate(False)
 
-        ctk.CTkLabel(header, text="BDE 计算器", font=(FONT_FAMILY, 16),
-            text_color=TEXT_PRIMARY).pack(side="left", padx=(PAD_OUTER, 0))
+        # 左侧：应用名
+        ctk.CTkLabel(
+            header,
+            text="BDE 计算器",
+            font=(FONT_FAMILY, 17, "normal"),
+            text_color=TEXT_PRIMARY,
+        ).pack(side="left", padx=(PAD_OUTER, 0), pady=0)
 
-        ctk.CTkLabel(header, text="键解离能计算", font=(FONT_FAMILY, 12),
-            text_color=TEXT_TERTIARY).pack(side="left", padx=(8, 0))
+        # 中间：分割线装饰
+        dot = ctk.CTkLabel(
+            header,
+            text="·",
+            font=(FONT_FAMILY, 20, "normal"),
+            text_color=TEXT_TERTIARY,
+        )
+        dot.pack(side="left", padx=6, pady=0)
 
-        ctk.CTkLabel(header, text="v1.1", font=(FONT_FAMILY, 10),
-            text_color=TEXT_TERTIARY).pack(side="right", padx=PAD_OUTER)
+        ctk.CTkLabel(
+            header,
+            text="键解离能计算工具",
+            font=(FONT_FAMILY, 12),
+            text_color=TEXT_SECONDARY,
+        ).pack(side="left", padx=0, pady=0)
 
-        ctk.CTkFrame(header, height=1, fg_color=BORDER_LIGHT).pack(side="bottom", fill="x")
+        # 右侧：版本
+        ctk.CTkLabel(
+            header,
+            text="v1.0",
+            font=(FONT_FAMILY, 11),
+            text_color=TEXT_TERTIARY,
+        ).pack(side="right", padx=PAD_OUTER, pady=0)
 
     # ══════════════════════════════════════════════════════
     #  选项卡主区域
@@ -190,165 +211,231 @@ class BDEApp(ctk.CTk):
     # ══════════════════════════════════════════════════════
 
     def _build_calc_tab(self, parent):
-        scroll = ctk.CTkScrollableFrame(parent, corner_radius=0, fg_color=BG_COLOR,
-                                         scrollbar_button_color=BG_COLOR,
-                                         scrollbar_button_hover_color=BG_COLOR)
+        scroll = ctk.CTkScrollableFrame(parent, corner_radius=0, fg_color=BG_COLOR, scrollbar_button_color=BG_COLOR, scrollbar_button_hover_color=BG_COLOR)
         scroll.pack(fill="both", expand=True)
 
-        # — 结果卡片（放在顶部，有结果时显示，iOS 风格浮层） —
-        result_card = ctk.CTkFrame(scroll, fg_color=CARD_BG, corner_radius=RADIUS_CARD)
-        # 内部摘要区
-        self.result_summary = ctk.CTkFrame(result_card, fg_color=BG_COLOR, corner_radius=RADIUS_INPUT)
-        self.result_display = ctk.CTkFrame(self.result_summary, fg_color="transparent")
+        # — 公式提示卡 —
+        info_card = self._make_card(scroll)
+        info_card.pack(fill="x", padx=0, pady=(0, PAD_INNER))
 
-        frame_val = ctk.CTkFrame(self.result_display, fg_color="transparent")
-        frame_val.pack(fill="x", pady=(PAD_INNER, 0))
-        self.label_bde_value = ctk.CTkLabel(frame_val, text="", font=(FONT_FAMILY, 44, "bold"), text_color=ACCENT_BLUE)
-        self.label_bde_value.pack(side="left", padx=(0, 6))
-        self.label_bde_unit = ctk.CTkLabel(frame_val, text="", font=(FONT_FAMILY, 18), text_color=TEXT_SECONDARY)
-        self.label_bde_unit.pack(side="left", pady=(16, 0))
+        ctk.CTkLabel(
+            info_card,
+            text="BDE  =  [ G(R·) + G(X·) ]  −  G(RX)       其中  G = E_sp + G_corr",
+            font=(FONT_FAMILY, 12),
+            text_color=TEXT_SECONDARY,
+        ).pack(anchor="w", padx=PAD_INNER, pady=(PAD_INNER, 2))
 
-        frame_kj = ctk.CTkFrame(self.result_display, fg_color="transparent")
-        frame_kj.pack(fill="x", pady=(2, PAD_COMPACT))
-        self.label_bde_kj_value = ctk.CTkLabel(frame_kj, text="", font=(FONT_FAMILY, 20), text_color=TEXT_PRIMARY)
-        self.label_bde_kj_value.pack(side="left", padx=(0, 4))
-        self.label_bde_kj_unit = ctk.CTkLabel(frame_kj, text="", font=(FONT_FAMILY, 14), text_color=TEXT_SECONDARY)
-        self.label_bde_kj_unit.pack(side="left")
+        ctk.CTkLabel(
+            info_card,
+            text="1 Hartree = 627.509 kcal/mol",
+            font=(FONT_FAMILY, 11),
+            text_color=TEXT_TERTIARY,
+        ).pack(anchor="w", padx=PAD_INNER, pady=(0, PAD_INNER))
 
-        self.result_divider = ctk.CTkFrame(self.result_display, height=1, fg_color=BORDER_LIGHT)
-        self.label_reaction = ctk.CTkLabel(self.result_display, text="", font=(FONT_FAMILY, 13), text_color=TEXT_SECONDARY, justify="left")
-
-        self._current_result = None
-        self._current_names = ("RX", "R·", "X·")
-
-        # — 反应式名称区（iOS 分段式：输入框在一行） —
-        name_card = ctk.CTkFrame(scroll, fg_color=CARD_BG, corner_radius=RADIUS_CARD)
-        name_card.pack(fill="x", padx=0, pady=(0, PAD_INNER * 2))
+        # — 反应式名称卡片 —
+        name_card = self._make_card(scroll)
+        name_card.pack(fill="x", padx=0, pady=(0, PAD_INNER))
 
         row = ctk.CTkFrame(name_card, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=14)
+        row.pack(fill="x", padx=PAD_INNER, pady=PAD_INNER)
 
-        ctk.CTkLabel(row, text="反 应 式", font=(FONT_FAMILY, 12), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, 12))
+        ctk.CTkLabel(row, text="反 应 式", font=(FONT_FAMILY, 12), text_color=TEXT_SECONDARY).pack(side="left", padx=(0, PAD_INNER))
 
-        self.entry_name_rx = ctk.CTkEntry(row, placeholder_text="分子", width=140,
-            font=FONT_REGULAR, corner_radius=8, border_width=0, fg_color=BG_COLOR)
-        self.entry_name_rx.pack(side="left", padx=3)
+        self.entry_name_rx = ctk.CTkEntry(
+            row, placeholder_text="分子 (如 CH₃OH)", width=180,
+            font=FONT_REGULAR, corner_radius=RADIUS_INPUT,
+            border_color=BORDER_LIGHT, fg_color=BG_COLOR,
+        )
+        self.entry_name_rx.pack(side="left", padx=4)
 
         ctk.CTkLabel(row, text="→", font=(FONT_FAMILY, 16), text_color=TEXT_TERTIARY).pack(side="left", padx=6)
 
-        self.entry_name_r = ctk.CTkEntry(row, placeholder_text="自由基1", width=140,
-            font=FONT_REGULAR, corner_radius=8, border_width=0, fg_color=BG_COLOR)
-        self.entry_name_r.pack(side="left", padx=3)
+        self.entry_name_r = ctk.CTkEntry(
+            row, placeholder_text="自由基1 (如 CH₃O·)", width=180,
+            font=FONT_REGULAR, corner_radius=RADIUS_INPUT,
+            border_color=BORDER_LIGHT, fg_color=BG_COLOR,
+        )
+        self.entry_name_r.pack(side="left", padx=4)
 
         ctk.CTkLabel(row, text="+", font=(FONT_FAMILY, 16), text_color=TEXT_TERTIARY).pack(side="left", padx=6)
 
-        self.entry_name_x = ctk.CTkEntry(row, placeholder_text="自由基2", width=140,
-            font=FONT_REGULAR, corner_radius=8, border_width=0, fg_color=BG_COLOR)
-        self.entry_name_x.pack(side="left", padx=3)
+        self.entry_name_x = ctk.CTkEntry(
+            row, placeholder_text="自由基2 (如 H·)", width=180,
+            font=FONT_REGULAR, corner_radius=RADIUS_INPUT,
+            border_color=BORDER_LIGHT, fg_color=BG_COLOR,
+        )
+        self.entry_name_x.pack(side="left", padx=4)
 
-        # — 三个物种卡片（并排） —
+        # — 三个物种卡片（并排）—
         cards_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        cards_row.pack(fill="x", padx=0, pady=(0, PAD_INNER * 2))
+        cards_row.pack(fill="x", padx=0, pady=(0, PAD_INNER))
         cards_row.columnconfigure((0, 1, 2), weight=1, uniform="species")
 
         self._build_species_card(cards_row, 0, "分子  RX",    "entry_rx_sp", "entry_rx_hcorr")
         self._build_species_card(cards_row, 1, "自由基  R·",  "entry_r_sp",  "entry_r_hcorr")
         self._build_species_card(cards_row, 2, "自由基  X·",  "entry_x_sp",  "entry_x_hcorr")
 
-        # — 操作按钮（iOS 风格：居中大按钮） —
+        # — 操作按钮 —
         btn_row = ctk.CTkFrame(scroll, fg_color="transparent")
-        btn_row.pack(fill="x", padx=0, pady=(0, 16))
+        btn_row.pack(fill="x", padx=0, pady=(0, PAD_INNER))
 
-        self.btn_calc = ctk.CTkButton(btn_row, text="计算 BDE", font=(FONT_FAMILY, 15),
-            fg_color=ACCENT_BLUE, hover_color=ACCENT_HOVER, text_color="white",
-            corner_radius=22, height=44, border_width=0,
-            command=self._calculate_bde)
-        self.btn_calc.pack(side="left", padx=(0, 10), expand=True)
+        self.btn_calc = self._primary_btn(btn_row, "  计算 BDE  ", self._calculate_bde)
+        self.btn_calc.pack(side="left", padx=(0, PAD_COMPACT))
 
-        self.btn_clear = ctk.CTkButton(btn_row, text="清空", font=(FONT_FAMILY, 14),
-            fg_color="transparent", text_color=TEXT_SECONDARY,
-            hover_color=BTN_SECONDARY, corner_radius=22, height=44, border_width=0,
-            command=self._clear_inputs)
-        self.btn_clear.pack(side="left", padx=5)
+        self.btn_clear = self._secondary_btn(btn_row, "  清空  ", self._clear_inputs)
+        self.btn_clear.pack(side="left", padx=(0, PAD_COMPACT))
 
-        self.btn_save = ctk.CTkButton(btn_row, text="保存结果", font=(FONT_FAMILY, 14),
-            fg_color=ACCENT_BLUE, hover_color=ACCENT_HOVER, text_color="white",
-            corner_radius=22, height=44, border_width=0,
-            command=self._save_result, state="disabled")
-        self.btn_save.pack(side="left", padx=(10, 0), expand=True)
+        self.btn_save = ctk.CTkButton(
+            btn_row, text="  保存结果  ",
+            font=(FONT_FAMILY, 13, "normal"),
+            fg_color="#34C759", hover_color="#28A745",  # 苹果绿
+            text_color="white",
+            corner_radius=RADIUS_BUTTON,
+            height=34, border_width=0,
+            command=self._save_result, state="disabled",
+        )
+        self.btn_save.pack(side="left")
 
-        # — 公式提示（底部，不显眼） —
-        info_card = ctk.CTkFrame(scroll, fg_color="transparent")
-        info_card.pack(fill="x", padx=0)
-        ctk.CTkLabel(info_card,
-            text="BDE = [G(R·) + G(X·)] − G(RX)    1 Hartree = 627.509 kcal/mol",
-            font=(FONT_FAMILY, 11), text_color=TEXT_TERTIARY,
-        ).pack(anchor="center", pady=(0, 8))
+        # — 结果卡片 —
+        result_card = self._make_card(scroll)
+        result_card.pack(fill="both", expand=True, padx=0, pady=(0, 0))
+
+        self._card_title(result_card, "计算结果").pack(anchor="w", padx=PAD_INNER, pady=(PAD_INNER, PAD_COMPACT))
+
+        # ── 结果摘要区（大字展示 BDE 数值）──
+        self.result_summary = ctk.CTkFrame(result_card, fg_color=BG_COLOR, corner_radius=RADIUS_INPUT)
+
+        # 内部容器：所有子控件在此统一管理
+        self.result_display = ctk.CTkFrame(self.result_summary, fg_color="transparent")
+
+        # — 第一行：BDE 大数值 + 单位（kcal/mol）—
+        frame_val = ctk.CTkFrame(self.result_display, fg_color="transparent")
+        frame_val.pack(fill="x", pady=(PAD_INNER, 0))
+
+        self.label_bde_value = ctk.CTkLabel(
+            frame_val, text="",
+            font=(FONT_FAMILY, 44, "bold"), text_color=ACCENT_BLUE,
+        )
+        self.label_bde_value.pack(side="left", padx=(0, 6))
+
+        self.label_bde_unit = ctk.CTkLabel(
+            frame_val, text="",
+            font=(FONT_FAMILY, 18, "normal"), text_color=TEXT_SECONDARY,
+        )
+        self.label_bde_unit.pack(side="left", pady=(16, 0))
+
+        # — 第二行：kJ/mol —
+        frame_kj = ctk.CTkFrame(self.result_display, fg_color="transparent")
+        frame_kj.pack(fill="x", pady=(2, PAD_COMPACT))
+
+        self.label_bde_kj_value = ctk.CTkLabel(
+            frame_kj, text="",
+            font=(FONT_FAMILY, 20, "normal"), text_color=TEXT_PRIMARY,
+        )
+        self.label_bde_kj_value.pack(side="left", padx=(0, 4))
+
+        self.label_bde_kj_unit = ctk.CTkLabel(
+            frame_kj, text="",
+            font=(FONT_FAMILY, 14, "normal"), text_color=TEXT_SECONDARY,
+        )
+        self.label_bde_kj_unit.pack(side="left")
+
+        # — 分隔装饰 —
+        self.result_divider = ctk.CTkFrame(self.result_display, height=1, fg_color=BORDER_LIGHT)
+
+        # — 反应式 + 焓值摘要 —
+        self.label_reaction = ctk.CTkLabel(
+            self.result_display, text="",
+            font=(FONT_FAMILY, 13), text_color=TEXT_SECONDARY, justify="left",
+        )
+
+        self._current_result = None
+        self._current_names = ("RX", "R·", "X·")
 
     # ── 单个物种输入卡片 ──
 
     def _build_species_card(self, parent, col: int, title: str, sp_attr: str, hc_attr: str):
-        card = ctk.CTkFrame(parent, fg_color=CARD_BG, corner_radius=RADIUS_CARD)
-        card.grid(row=0, column=col, sticky="nsew", padx=5, pady=0)
+        card = self._make_card(parent)
+        card.grid(row=0, column=col, sticky="nsew", padx=6, pady=0)
 
-        # 标题
-        ctk.CTkLabel(card, text=title, font=(FONT_FAMILY, 15), text_color=TEXT_PRIMARY,
-        ).pack(anchor="w", padx=16, pady=(14, 10))
+        ctk.CTkLabel(
+            card, text=title,
+            font=(FONT_FAMILY, 14, "normal"),
+            text_color=TEXT_PRIMARY,
+        ).pack(anchor="w", padx=PAD_INNER, pady=(PAD_INNER, PAD_COMPACT))
 
-        # G_corr 行
-        ctk.CTkLabel(card, text="吉布斯自由能校正  G_corr",
-                     font=(FONT_FAMILY, 11), text_color=TEXT_TERTIARY
-        ).pack(anchor="w", padx=16, pady=(0, 4))
-
+        # G_corr 行（上）：输入框 + 文件按钮
+        self._small_label(card, "吉布斯自由能校正  G_corr (Thermal Correction to Free Energy)").pack(anchor="w", padx=PAD_INNER, pady=(0, 2))
         hc_row = ctk.CTkFrame(card, fg_color="transparent")
-        hc_row.pack(fill="x", padx=16, pady=(0, 8))
+        hc_row.pack(fill="x", padx=PAD_INNER, pady=(0, PAD_INNER))
         hc_row.columnconfigure(0, weight=1)
 
-        entry_hc = ctk.CTkEntry(hc_row, font=FONT_MONO_S, corner_radius=8,
-            border_width=0, fg_color=BG_COLOR, height=32)
-        entry_hc.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        entry_hc = ctk.CTkEntry(
+            hc_row, font=FONT_MONO_S,
+            corner_radius=RADIUS_INPUT,
+            border_color=BORDER_LIGHT,
+            fg_color=BG_COLOR,
+            height=32,
+        )
+        entry_hc.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         setattr(self, hc_attr, entry_hc)
 
-        btn_hc = ctk.CTkButton(hc_row, text="📂", font=(FONT_FAMILY, 13),
-            width=30, height=30, corner_radius=6,
-            fg_color="transparent", text_color=ACCENT_BLUE,
-            hover_color="#E8F0FE", border_width=0,
-            command=lambda a=hc_attr: self._import_gcorr(a))
+        btn_hc = ctk.CTkButton(
+            hc_row, text="📂",
+            font=(FONT_FAMILY, 14),
+            fg_color="transparent",
+            text_color=ACCENT_BLUE,
+            hover_color="#E8F0FE",
+            corner_radius=RADIUS_BUTTON,
+            width=36, height=32, border_width=0,
+            command=lambda a=hc_attr: self._import_gcorr(a),
+        )
         btn_hc.grid(row=0, column=1)
 
-        # E_sp 行
-        ctk.CTkLabel(card, text="单点能  E_sp",
-                     font=(FONT_FAMILY, 11), text_color=TEXT_TERTIARY
-        ).pack(anchor="w", padx=16, pady=(0, 4))
-
+        # E_sp 行（下）：输入框 + 文件按钮
+        self._small_label(card, "单点能  E_sp").pack(anchor="w", padx=PAD_INNER, pady=(0, 2))
         sp_row = ctk.CTkFrame(card, fg_color="transparent")
-        sp_row.pack(fill="x", padx=16, pady=(0, 8))
+        sp_row.pack(fill="x", padx=PAD_INNER, pady=(0, PAD_INNER))
         sp_row.columnconfigure(0, weight=1)
 
-        entry_sp = ctk.CTkEntry(sp_row, font=FONT_MONO_S, corner_radius=8,
-            border_width=0, fg_color=BG_COLOR, height=32)
-        entry_sp.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        entry_sp = ctk.CTkEntry(
+            sp_row, font=FONT_MONO_S,
+            corner_radius=RADIUS_INPUT,
+            border_color=BORDER_LIGHT,
+            fg_color=BG_COLOR,
+            height=32,
+        )
+        entry_sp.grid(row=0, column=0, sticky="ew", padx=(0, 4))
         setattr(self, sp_attr, entry_sp)
 
-        btn_sp = ctk.CTkButton(sp_row, text="📂", font=(FONT_FAMILY, 13),
-            width=30, height=30, corner_radius=6,
-            fg_color="transparent", text_color=ACCENT_BLUE,
-            hover_color="#E8F0FE", border_width=0,
-            command=lambda a=sp_attr: self._import_esp(a))
+        btn_sp = ctk.CTkButton(
+            sp_row, text="📂",
+            font=(FONT_FAMILY, 14),
+            fg_color="transparent",
+            text_color=ACCENT_BLUE,
+            hover_color="#E8F0FE",
+            corner_radius=RADIUS_BUTTON,
+            width=36, height=32, border_width=0,
+            command=lambda a=sp_attr: self._import_esp(a),
+        )
         btn_sp.grid(row=0, column=1)
 
-        # 图片上传
+        # 图片上传按钮
         img_attr = f"img_{sp_attr.split('_')[1]}".replace("_sp","")
         img_frame = ctk.CTkFrame(card, fg_color="transparent")
-        img_frame.pack(fill="x", padx=16, pady=(0, 12))
+        img_frame.pack(fill="x", padx=PAD_INNER, pady=(0, PAD_INNER))
 
         img_preview = ctk.CTkLabel(img_frame, text="", font=(FONT_FAMILY, 10), text_color=TEXT_TERTIARY)
         img_preview.pack(side="left", fill="x", expand=True)
 
-        img_btn = ctk.CTkButton(img_frame, text="📷 上传分子结构", font=(FONT_FAMILY, 11),
+        img_btn = ctk.CTkButton(
+            img_frame, text="📷 上传分子结构",
+            font=(FONT_FAMILY, 11),
             fg_color="transparent", text_color=ACCENT_BLUE,
-            hover_color="#E8F0FE", corner_radius=6, height=26, border_width=0,
-            command=lambda a=sp_attr.split("_")[1]: self._upload_image(a))
+            hover_color="#E8F0FE", corner_radius=RADIUS_BUTTON,
+            height=26, border_width=0,
+            command=lambda a=sp_attr.split("_")[1]: self._upload_image(a),
+        )
         img_btn.pack(side="right")
 
         setattr(self, f"lbl_{img_attr}", img_preview)
@@ -566,7 +653,7 @@ class BDEApp(ctk.CTk):
         self._current_result = result
 
         self._update_result_display(result, name_rx, name_r, name_x)
-        self.btn_save.configure(state="normal", fg_color=ACCENT_BLUE, hover_color=ACCENT_HOVER)
+        self.btn_save.configure(state="normal", fg_color="#34C759", hover_color="#28A745")
 
     def _clear_inputs(self):
         for attr in ("entry_name_rx", "entry_name_r", "entry_name_x",
@@ -587,7 +674,7 @@ class BDEApp(ctk.CTk):
             lbl = getattr(self, f"lbl_img_{k}", None)
             if lbl:
                 lbl.configure(image="", text="")
-        self.btn_save.configure(state="disabled", fg_color="#C7C7CC", hover_color="#A8A8AD")
+        self.btn_save.configure(state="disabled", fg_color="#A8A8AD", hover_color="#8E8E93")
 
     def _save_result(self):
         if not self._current_result:
