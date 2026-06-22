@@ -1035,10 +1035,8 @@ class BDEApp(ctk.CTk):
         self._hist_scroll_card = self._make_card(scroll)
         self._hist_scroll_card.pack(fill="both", expand=True, padx=0, pady=(0, 0))
 
-        self._hist_canvas_inner = ctk.CTkScrollableFrame(
+        self._hist_canvas_inner = ctk.CTkFrame(
             self._hist_scroll_card, fg_color="transparent",
-            scrollbar_button_color=BG_COLOR,
-            scrollbar_button_hover_color=BG_COLOR,
         )
         self._hist_canvas_inner.pack(fill="both", expand=True, padx=PAD_INNER, pady=(PAD_COMPACT, PAD_INNER))
 
@@ -1078,7 +1076,6 @@ class BDEApp(ctk.CTk):
             return
 
         type_labels = {"single": "单组", "batch": "批量"}
-        _icons = {"single": "🔬", "batch": "📋"}
 
         for i, rec in enumerate(records):
             name_rx = rec.get("name_rx", "RX")
@@ -1088,107 +1085,85 @@ class BDEApp(ctk.CTk):
             bj = rec.get("bde_kj", 0)
             ts = rec.get("timestamp", "")
             t = rec.get("type", "single")
-            icon = _icons.get(t, "🔬")
 
-            # 卡片容器
+            # ── 卡片（网格布局：图片 | 信息 | 按钮）──
             card = self._make_card(self._hist_canvas_inner, corner_radius=10)
-            card.pack(fill="x", padx=0, pady=4)
+            card.pack(fill="x", padx=0, pady=3)
+            card.columnconfigure(0, minsize=60)   # 图片列
+            card.columnconfigure(1, weight=1)      # 信息列
+            card.columnconfigure(2, minsize=72)    # 按钮列
 
-            top_row = ctk.CTkFrame(card, fg_color="transparent")
-            top_row.pack(fill="x", padx=PAD_INNER, pady=(PAD_INNER, 0))
-
-            # 右侧：操作按钮组（先pack，保证有空间）
-            btn_frame = ctk.CTkFrame(top_row, fg_color="transparent")
-            btn_frame.pack(side="right", padx=(0, 0))
-
-            btn_edit = ctk.CTkButton(
-                btn_frame, text="✏️", font=(FONT_FAMILY, 14),
-                width=32, height=32, corner_radius=8,
-                fg_color=BTN_SECONDARY, text_color=TEXT_PRIMARY,
-                hover_color="#D1D1D6", border_width=0,
-                command=lambda idx=i: self._edit_history_record(idx),
-            )
-            btn_edit.pack(side="top", pady=(0, 4))
-            ctk.CTkLabel(btn_frame, text="编辑", font=(FONT_FAMILY, 8),
-                         text_color=TEXT_TERTIARY).pack(side="top")
-
-            btn_del = ctk.CTkButton(
-                btn_frame, text="🗑️", font=(FONT_FAMILY, 14),
-                width=32, height=32, corner_radius=8,
-                fg_color=BTN_SECONDARY, text_color=BTN_DANGER,
-                hover_color="#FFD1CC", border_width=0,
-                command=lambda idx=i: self._delete_single_record(idx),
-            )
-            btn_del.pack(side="top", pady=(4, 0))
-            ctk.CTkLabel(btn_frame, text="删除", font=(FONT_FAMILY, 8),
-                         text_color=BTN_DANGER).pack(side="top")
-
-            # 左侧：图片区（点击可放大）
+            # 第0列：缩略图
             img_path = rec.get("img_rx") or rec.get("img_r") or rec.get("img_x") or ""
-            img_frame = ctk.CTkFrame(top_row, fg_color=BG_COLOR, corner_radius=8, width=140, height=100)
-            img_frame.pack(side="left", padx=(0, PAD_INNER))
+            img_frame = ctk.CTkFrame(card, fg_color=BG_COLOR, corner_radius=6, width=40, height=40)
+            img_frame.grid(row=0, column=0, rowspan=2, padx=(PAD_INNER, PAD_COMPACT), pady=6, sticky="n")
             img_frame.pack_propagate(False)
-
-            img_lbl = ctk.CTkLabel(img_frame, text="🧪\n无图片", font=(FONT_FAMILY, 10), text_color=TEXT_TERTIARY)
-            img_lbl.pack(expand=True)
+            img_lbl = ctk.CTkLabel(img_frame, text="🧪", font=(FONT_FAMILY, 16))
+            img_lbl.place(relx=0.5, rely=0.5, anchor="center")
             if img_path and os.path.exists(img_path):
                 try:
                     from PIL import Image as PILImage
                     pi = PILImage.open(img_path)
-                    pi.thumbnail((140, 100))
+                    pi.thumbnail((40, 40))
                     ci = ctk.CTkImage(light_image=pi, dark_image=pi, size=pi.size)
                     img_lbl.configure(image=ci, text="")
                     img_lbl._ctk_image = ci
-                    # 点击图片查看大图
                     img_lbl.bind("<Button-1>", lambda e, p=img_path: self._show_full_image(p))
                     img_lbl.configure(cursor="hand2")
                 except Exception:
                     pass
 
-            # 中间：核心信息区
-            info = ctk.CTkFrame(top_row, fg_color="transparent")
-            info.pack(side="left", fill="x", expand=True)
+            # 第1行0列：反应式
+            r1_label = ctk.CTkLabel(
+                card, text=f"{name_rx} → {name_r} + {name_x}",
+                font=(FONT_FAMILY, 12, "bold"), text_color=TEXT_PRIMARY, anchor="w"
+            )
+            r1_label.grid(row=0, column=1, sticky="sw", padx=(0, PAD_COMPACT), pady=(6, 0))
 
-            # 反应式 + 类型tag
-            r1 = ctk.CTkFrame(info, fg_color="transparent")
-            r1.pack(fill="x")
-            ctk.CTkLabel(r1, text=f"{icon} {name_rx} → {name_r} + {name_x}",
-                         font=(FONT_FAMILY, 13, "bold"), text_color=TEXT_PRIMARY,
-                         anchor="w").pack(side="left")
+            # 类型标签
             type_bg = "#E8F0FE" if t == "single" else "#FFF3E0"
             type_fg = ACCENT_BLUE if t == "single" else "#F57C00"
-            ctk.CTkLabel(r1, text=f" {type_labels.get(t, '')} ",
-                         font=(FONT_FAMILY, 9, "bold"),
-                         fg_color=type_bg, text_color=type_fg, corner_radius=4, padx=4
-            ).pack(side="right")
+            type_label = ctk.CTkLabel(
+                card, text=f" {type_labels.get(t, '')} ",
+                font=(FONT_FAMILY, 8, "bold"),
+                fg_color=type_bg, text_color=type_fg, corner_radius=4, padx=4
+            )
+            type_label.grid(row=0, column=1, sticky="se", padx=(0, PAD_COMPACT), pady=(6, 0))
 
-            # BDE 大数字 + kJ换算
-            r2 = ctk.CTkFrame(info, fg_color="transparent")
-            r2.pack(fill="x", pady=(4, 0))
-            ctk.CTkLabel(r2, text=f"{bk:.2f} kcal/mol  =  {bj:.2f} kJ/mol",
-                         font=(FONT_FAMILY, 14, "normal"), text_color=ACCENT_BLUE,
-                         anchor="w").pack(side="left")
-
-            # 备注
+            # 第2行1列：BDE
             route = rec.get("route_esp", "") or rec.get("route_gcorr", "")
+            info_text = f"{bk:.2f} kcal/mol  =  {bj:.2f} kJ/mol"
             if route:
-                ctk.CTkLabel(info, text=f"📋 {route[:70]}",
-                             font=(FONT_MONO, 9), text_color=TEXT_TERTIARY,
-                             anchor="w").pack(fill="x")
-            ctk.CTkLabel(info, text=f"🕐 {ts}",
-                         font=(FONT_FAMILY, 9), text_color=TEXT_TERTIARY,
-                         anchor="w").pack(fill="x")
+                info_text += f"  ·  {route[:50]}"
+            r2_label = ctk.CTkLabel(
+                card, text=info_text,
+                font=(FONT_FAMILY, 10), text_color=ACCENT_BLUE, anchor="w",
+            )
+            r2_label.grid(row=1, column=1, sticky="nw", padx=(0, PAD_COMPACT), pady=(0, 6))
 
-            # 分隔 + 底部详情入口
-            ctk.CTkFrame(card, height=1, fg_color=BORDER_LIGHT).pack(fill="x", padx=PAD_INNER, pady=(0, 0))
+            # 第2列：按钮
+            btn_edit = ctk.CTkButton(
+                card, text=" 编辑 ", font=(FONT_FAMILY, 11),
+                width=52, height=26, corner_radius=6,
+                fg_color=BTN_SECONDARY, text_color=TEXT_PRIMARY,
+                hover_color="#D1D1D6", border_width=0,
+                command=lambda idx=i: self._edit_history_record(idx),
+            )
+            btn_edit.grid(row=0, column=2, padx=(0, PAD_INNER-2), pady=(6, 1), sticky="s")
 
-            bottom = ctk.CTkFrame(card, fg_color="transparent")
-            bottom.pack(fill="x", padx=PAD_INNER, pady=(PAD_COMPACT, PAD_INNER))
-            ctk.CTkLabel(bottom, text="💡 点击查看完整详情",
-                         font=(FONT_FAMILY, 10), text_color=ACCENT_BLUE,
-                         cursor="hand2").pack(side="right")
-            bottom.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
-            bottom._rec_idx = i
+            btn_del = ctk.CTkButton(
+                card, text=" 删除 ", font=(FONT_FAMILY, 11),
+                width=52, height=26, corner_radius=6,
+                fg_color=BTN_SECONDARY, text_color=BTN_DANGER,
+                hover_color="#FFD1CC", border_width=0,
+                command=lambda idx=i: self._delete_single_record(idx),
+            )
+            btn_del.grid(row=1, column=2, padx=(0, PAD_INNER-2), pady=(1, 6), sticky="n")
+
+            # 绑定整卡点击打开详情
+            for wid in (r1_label, r2_label):
+                wid.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
+                wid.configure(cursor="hand2")
 
     def _update_stats(self, records: list):
         """更新统计摘要——4个迷你卡片"""
@@ -1269,8 +1244,8 @@ class BDEApp(ctk.CTk):
             ("name_rx", "分子 (RX) 名称"),
             ("name_r",  "自由基 R· 名称"),
             ("name_x",  "自由基 X· 名称"),
-            ("route_esp", "E_sp 计算级别 (# 行)"),
             ("route_gcorr", "G_corr 计算级别 (# 行)"),
+            ("route_esp", "E_sp 计算级别 (# 行)"),
         ]
         for key, label in fields:
             ctk.CTkLabel(main_frame, text=label,
