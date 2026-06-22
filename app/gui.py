@@ -1005,65 +1005,17 @@ class BDEApp(ctk.CTk):
         )
         btn_clear.pack(side="left")
 
-        # ── 表格 ──
-        table_card = self._make_card(scroll)
-        table_card.pack(fill="both", expand=True, padx=0, pady=(0, 0))
+        # ── 记录卡片列表 ──
+        self._hist_scroll_card = self._make_card(scroll)
+        self._hist_scroll_card.pack(fill="both", expand=True, padx=0, pady=(0, 0))
 
-        frame = ctk.CTkFrame(table_card, fg_color="transparent")
-        frame.pack(fill="both", expand=True, padx=PAD_INNER, pady=PAD_INNER)
-
-        cols = ("#", "类型", "方法", "时间", "反应式", "BDE (kcal/mol)", "BDE (kJ/mol)")
-
-        style2 = ttk.Style()
-        style2.configure("AppleHist.Treeview",
-                         background=CARD_BG, foreground=TEXT_PRIMARY,
-                         fieldbackground=CARD_BG, font=(FONT_FAMILY, 11),
-                         rowheight=32, borderwidth=0)
-        style2.configure("AppleHist.Treeview.Heading",
-                         font=(FONT_FAMILY, 11, "normal"),
-                         background=BG_COLOR, foreground=TEXT_SECONDARY,
-                         borderwidth=0, relief="flat")
-        style2.layout("AppleHist.Treeview.Heading", [
-            ("AppleHist.Treeview.heading.cell", {"sticky": "nswe"}),
-            ("AppleHist.Treeview.heading.border", {"sticky": "nswe", "children": [
-                ("AppleHist.Treeview.heading.padding", {"sticky": "nswe", "children": [
-                    ("AppleHist.Treeview.heading.image", {"side": "right", "sticky": ""}),
-                    ("AppleHist.Treeview.heading.text", {"sticky": "we"}),
-                ]}),
-            ]}),
-        ])
-        style2.map("AppleHist.Treeview.Heading", background=[("active", "#E8E8ED")])
-        style2.map("AppleHist.Treeview",
-                   background=[("selected", ACCENT_BLUE)],
-                   foreground=[("selected", "white")])
-
-        self.tree_hist = ttk.Treeview(frame, columns=cols, show="headings",
-                                      style="AppleHist.Treeview", height=14,
-                                      selectmode="extended")
-        widths_h = [34, 50, 100, 130, 280, 110, 110]
-        for col, w in zip(cols, widths_h):
-            self.tree_hist.heading(col, text=col)
-            self.tree_hist.column(col, width=w, anchor="center")
-        self.tree_hist.column("反应式", anchor="w")
-
-        vsb2 = ttk.Scrollbar(frame, orient="vertical", command=self.tree_hist.yview)
-        self.tree_hist.configure(yscrollcommand=vsb2.set)
-        self.tree_hist.pack(side="left", fill="both", expand=True)
-        vsb2.pack(side="right", fill="y")
-
-        self.tree_hist.bind("<Double-1>", self._show_history_detail)
-
-        # 右键菜单
-        self._hist_menu = Menu(
-            frame, tearoff=False, background=CARD_BG, fg=TEXT_PRIMARY,
-            activebackground=ACCENT_BLUE, activeforeground="white",
-            font=(FONT_FAMILY, 11),
+        self._hist_canvas_inner = ctk.CTkScrollableFrame(
+            self._hist_scroll_card, fg_color="transparent",
+            scrollbar_button_color=BG_COLOR,
+            scrollbar_button_hover_color=BG_COLOR,
         )
-        self._hist_menu.add_command(label="查看详情", command=lambda: self._show_history_detail(None))
-        self._hist_menu.add_command(label="复制 BDE 值", command=self._copy_bde_value)
-        self._hist_menu.add_separator()
-        self._hist_menu.add_command(label="删除选中", command=self._delete_history_selected)
-        self.tree_hist.bind("<Button-3>", lambda e: self._hist_menu.tk_popup(e.x_root, e.y_root))
+        self._hist_canvas_inner.pack(fill="both", expand=True, padx=PAD_INNER, pady=(PAD_COMPACT, PAD_INNER))
+
 
     def _clear_search(self):
         """清空搜索框"""
@@ -1083,31 +1035,99 @@ class BDEApp(ctk.CTk):
         ]
 
     def _refresh_history(self):
-        if not hasattr(self, 'tree_hist'):
+        if not hasattr(self, '_hist_canvas_inner'):
             return
-        for row in self.tree_hist.get_children():
-            self.tree_hist.delete(row)
+        for w in self._hist_canvas_inner.winfo_children():
+            w.destroy()
 
         records = self._get_filtered_records()
         self._history_data = records
         self._update_stats(records)
 
+        if not records:
+            ctk.CTkLabel(
+                self._hist_canvas_inner, text="暂无计算记录",
+                font=(FONT_FAMILY, 12), text_color=TEXT_TERTIARY,
+            ).pack(anchor="w", pady=20)
+            return
+
         type_labels = {"single": "单组", "batch": "批量"}
-        bg_alt = "#FAFAFA"  # 隔行浅灰
+        _icons = {"single": "🔬", "batch": "📋"}
 
         for i, rec in enumerate(records):
-            reaction = f"{rec.get('name_rx', 'RX')} → {rec.get('name_r', 'R·')} + {rec.get('name_x', 'X·')}"
+            name_rx = rec.get("name_rx", "RX")
+            name_r  = rec.get("name_r", "R·")
+            name_x  = rec.get("name_x", "X·")
             bk = rec.get("bde_kcal", 0)
-            bj = rec.get("bde_kj", 0)
             ts = rec.get("timestamp", "")
             t = rec.get("type", "single")
-            # 显示 route_esp（高精度方法）
-            rte = rec.get("route_esp", "")[:50]
-            tag = f"r{i}"
-            self.tree_hist.insert("", "end", values=(
-                i+1, type_labels.get(t, ""), rte, ts, reaction, f"{bk:.2f}", f"{bj:.2f}"
-            ), iid=str(i), tags=(tag,))
-            self.tree_hist.tag_configure(tag, background=bg_alt if i % 2 == 1 else CARD_BG)
+            icon = _icons.get(t, "🔬")
+
+            # 每个记录一张卡片
+            card = self._make_card(self._hist_canvas_inner, corner_radius=10)
+            card.pack(fill="x", padx=0, pady=4)
+            card._rec_idx = i  # 存索引供删除/详情用
+
+            # 绑定点击事件
+            card.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
+            for child in card.winfo_children():
+                child.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
+
+            # 行内：左侧图片 + 右侧信息
+            row = ctk.CTkFrame(card, fg_color="transparent")
+            row.pack(fill="x", padx=PAD_INNER, pady=PAD_INNER)
+
+            # 左侧：分子图片缩略图（最多显示第一个有的物种）
+            img_path = rec.get("img_rx") or rec.get("img_r") or rec.get("img_x") or ""
+            img_label = ctk.CTkLabel(row, text="", font=(FONT_FAMILY, 10), text_color=TEXT_TERTIARY)
+            img_label.pack(side="left", padx=(0, PAD_INNER))
+            img_label._img_path = img_path
+            img_label._rec_idx = i
+            if img_path and os.path.exists(img_path):
+                try:
+                    from PIL import Image as PILImage
+                    pi = PILImage.open(img_path)
+                    pi.thumbnail((80, 60))
+                    ci = ctk.CTkImage(light_image=pi, dark_image=pi, size=pi.size)
+                    img_label.configure(image=ci, text="")
+                    img_label._ctk_image = ci
+                except Exception:
+                    img_label.configure(text="🧪")
+            else:
+                img_label.configure(text="🧪")
+
+            # 右侧信息区
+            info = ctk.CTkFrame(row, fg_color="transparent")
+            info.pack(side="left", fill="x", expand=True)
+
+            # 第一行：反应式 + 类型标签
+            r1 = ctk.CTkFrame(info, fg_color="transparent")
+            r1.pack(fill="x")
+            ctk.CTkLabel(r1, text=f"{icon}  {name_rx} → {name_r} + {name_x}",
+                         font=(FONT_FAMILY, 13, "bold"), text_color=TEXT_PRIMARY,
+                         anchor="w").pack(side="left")
+            type_bg = "#E8F0FE" if t == "single" else "#FFF3E0"
+            type_fg = ACCENT_BLUE if t == "single" else "#F57C00"
+            ctk.CTkLabel(r1, text=type_labels.get(t, ""), font=(FONT_FAMILY, 10, "bold"),
+                         fg_color=type_bg, text_color=type_fg, corner_radius=4, padx=6
+            ).pack(side="right")
+
+            # 第二行：BDE + 时间
+            r2 = ctk.CTkFrame(info, fg_color="transparent")
+            r2.pack(fill="x", pady=(4, 0))
+            ctk.CTkLabel(r2, text=f"BDE = {bk:.2f} kcal/mol",
+                         font=(FONT_FAMILY, 14, "normal"), text_color=ACCENT_BLUE, anchor="w"
+            ).pack(side="left")
+            ctk.CTkLabel(r2, text=ts,
+                         font=(FONT_FAMILY, 10), text_color=TEXT_TERTIARY, anchor="e"
+            ).pack(side="right")
+
+            # 第三行：Route
+            rte = rec.get("route_esp", "") or rec.get("route_gcorr", "")
+            if rte:
+                ctk.CTkLabel(info, text=rte[:80],
+                             font=(FONT_MONO, 9), text_color=TEXT_TERTIARY,
+                             anchor="w").pack(fill="x")
 
     def _update_stats(self, records: list):
         """更新统计摘要——4个迷你卡片"""
@@ -1149,13 +1169,22 @@ class BDEApp(ctk.CTk):
                          text_color=TEXT_TERTIARY, anchor="w"
             ).pack(fill="x")
 
+    def _hist_card_click(self, idx: int):
+        """点击历史卡片打开详情"""
+        if idx < len(self._history_data):
+            self._show_history_detail(idx)
+
     def _delete_history_selected(self):
-        sel = self.tree_hist.selection()
-        if not sel:
+        """从工具栏删除按钮触发：弹窗选择要删除的序号"""
+        from tkinter import simpledialog
+        total = len(self._history_data)
+        if total == 0:
             return
-        for idx in sorted([int(i) for i in sel], reverse=True):
-            delete_history(idx)
-        self._refresh_history()
+        n = simpledialog.askinteger("删除记录", f"当前共 {total} 条记录\n输入要删除的序号 (1-{total}):",
+                                    minvalue=1, maxvalue=total, parent=self)
+        if n is not None:
+            delete_history(n - 1)
+            self._refresh_history()
 
     def _clear_history_all(self):
         if messagebox.askyesno("确认", "确定要清空所有历史记录吗？"):
@@ -1163,24 +1192,21 @@ class BDEApp(ctk.CTk):
             self._refresh_history()
 
     def _copy_bde_value(self):
-        sel = self.tree_hist.selection()
-        if not sel:
+        """工具栏复制按钮：弹窗选择要复制的序号"""
+        total = len(self._history_data)
+        if total == 0:
             return
-        vals = self.tree_hist.item(sel[0], "values")
-        bde = vals[5] if len(vals) > 5 else ""
-        if bde:
+        from tkinter import simpledialog
+        n = simpledialog.askinteger("复制 BDE", f"当前共 {total} 条记录\n输入要复制的序号 (1-{total}):",
+                                    minvalue=1, maxvalue=total, parent=self)
+        if n is not None:
+            rec = self._history_data[n - 1]
+            bk = rec.get("bde_kcal", 0)
             self.clipboard_clear()
-            self.clipboard_append(bde)
-            messagebox.showinfo("已复制", f"BDE = {bde} kcal/mol")
+            self.clipboard_append(f"{bk:.2f}")
+            messagebox.showinfo("已复制", f"BDE = {bk:.2f} kcal/mol")
 
-    def _show_history_detail(self, event):
-        sel = self.tree_hist.selection()
-        if not sel:
-            return
-        idx = int(sel[0])
-        if idx >= len(self._history_data):
-            return
-        rec = self._history_data[idx]
+    def _show_history_detail(self, idx: int):
 
         name_rx = rec.get("name_rx", "RX")
         name_r  = rec.get("name_r", "R·")
