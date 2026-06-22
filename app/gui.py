@@ -1097,6 +1097,32 @@ class BDEApp(ctk.CTk):
             top_row = ctk.CTkFrame(card, fg_color="transparent")
             top_row.pack(fill="x", padx=PAD_INNER, pady=(PAD_INNER, 0))
 
+            # 右侧：操作按钮组（先pack，保证有空间）
+            btn_frame = ctk.CTkFrame(top_row, fg_color="transparent")
+            btn_frame.pack(side="right", padx=(0, 0))
+
+            btn_edit = ctk.CTkButton(
+                btn_frame, text="✏️", font=(FONT_FAMILY, 14),
+                width=32, height=32, corner_radius=8,
+                fg_color=BTN_SECONDARY, text_color=TEXT_PRIMARY,
+                hover_color="#D1D1D6", border_width=0,
+                command=lambda idx=i: self._edit_history_record(idx),
+            )
+            btn_edit.pack(side="top", pady=(0, 4))
+            ctk.CTkLabel(btn_frame, text="编辑", font=(FONT_FAMILY, 8),
+                         text_color=TEXT_TERTIARY).pack(side="top")
+
+            btn_del = ctk.CTkButton(
+                btn_frame, text="🗑️", font=(FONT_FAMILY, 14),
+                width=32, height=32, corner_radius=8,
+                fg_color=BTN_SECONDARY, text_color=BTN_DANGER,
+                hover_color="#FFD1CC", border_width=0,
+                command=lambda idx=i: self._delete_single_record(idx),
+            )
+            btn_del.pack(side="top", pady=(4, 0))
+            ctk.CTkLabel(btn_frame, text="删除", font=(FONT_FAMILY, 8),
+                         text_color=BTN_DANGER).pack(side="top")
+
             # 左侧：图片区（点击可放大）
             img_path = rec.get("img_rx") or rec.get("img_r") or rec.get("img_x") or ""
             img_frame = ctk.CTkFrame(top_row, fg_color=BG_COLOR, corner_radius=8, width=140, height=100)
@@ -1153,42 +1179,15 @@ class BDEApp(ctk.CTk):
                          font=(FONT_FAMILY, 9), text_color=TEXT_TERTIARY,
                          anchor="w").pack(fill="x")
 
-            # 右侧：操作按钮组
-            btn_frame = ctk.CTkFrame(top_row, fg_color="transparent")
-            btn_frame.pack(side="right", padx=(PAD_INNER, 0))
-
-            btn_edit = ctk.CTkButton(
-                btn_frame, text="✏️", font=(FONT_FAMILY, 14),
-                width=32, height=32, corner_radius=8,
-                fg_color=BTN_SECONDARY, text_color=TEXT_PRIMARY,
-                hover_color="#D1D1D6", border_width=0,
-                command=lambda idx=i: self._edit_history_record(idx),
-            )
-            btn_edit.pack(side="top", pady=(0, 4))
-            ctk.CTkLabel(btn_frame, text="编辑", font=(FONT_FAMILY, 8),
-                         text_color=TEXT_TERTIARY).pack(side="top")
-
-            btn_del = ctk.CTkButton(
-                btn_frame, text="🗑️", font=(FONT_FAMILY, 14),
-                width=32, height=32, corner_radius=8,
-                fg_color=BTN_SECONDARY, text_color=BTN_DANGER,
-                hover_color="#FFD1CC", border_width=0,
-                command=lambda idx=i: self._delete_single_record(idx),
-            )
-            btn_del.pack(side="top", pady=(4, 0))
-            ctk.CTkLabel(btn_frame, text="删除", font=(FONT_FAMILY, 8),
-                         text_color=BTN_DANGER).pack(side="top")
-
-            # 分隔
+            # 分隔 + 底部详情入口
             ctk.CTkFrame(card, height=1, fg_color=BORDER_LIGHT).pack(fill="x", padx=PAD_INNER, pady=(0, 0))
 
-            # 底部缩略数据行（点击打开详情）
             bottom = ctk.CTkFrame(card, fg_color="transparent")
             bottom.pack(fill="x", padx=PAD_INNER, pady=(PAD_COMPACT, PAD_INNER))
-            bottom.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
-            ctk.CTkLabel(bottom, text="💡 点击查看完整详情 →",
+            ctk.CTkLabel(bottom, text="💡 点击查看完整详情",
                          font=(FONT_FAMILY, 10), text_color=ACCENT_BLUE,
                          cursor="hand2").pack(side="right")
+            bottom.bind("<Button-1>", lambda e, idx=i: self._hist_card_click(idx))
             bottom._rec_idx = i
 
     def _update_stats(self, records: list):
