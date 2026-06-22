@@ -3,6 +3,7 @@ BDE 计算器 - 主窗口 GUI (Apple 风格)
 """
 
 import customtkinter as ctk
+import os
 from tkinter import messagebox, ttk, Menu
 from typing import Optional
 
@@ -71,6 +72,9 @@ class BDEApp(ctk.CTk):
         self._history_data = []
         self._route_esp = ""
         self._route_gcorr = ""
+        self._img_rx = ""
+        self._img_r  = ""
+        self._img_x  = ""
         self._build_main_area()
         self._refresh_history()
 
@@ -416,6 +420,26 @@ class BDEApp(ctk.CTk):
         )
         btn_sp.grid(row=0, column=1)
 
+        # 图片上传按钮
+        img_attr = f"img_{sp_attr.split('_')[1]}".replace("_sp","")
+        img_frame = ctk.CTkFrame(card, fg_color="transparent")
+        img_frame.pack(fill="x", padx=PAD_INNER, pady=(0, PAD_INNER))
+
+        img_preview = ctk.CTkLabel(img_frame, text="", font=(FONT_FAMILY, 10), text_color=TEXT_TERTIARY)
+        img_preview.pack(side="left", fill="x", expand=True)
+
+        img_btn = ctk.CTkButton(
+            img_frame, text="📷 上传分子结构",
+            font=(FONT_FAMILY, 11),
+            fg_color="transparent", text_color=ACCENT_BLUE,
+            hover_color="#E8F0FE", corner_radius=RADIUS_BUTTON,
+            height=26, border_width=0,
+            command=lambda a=sp_attr.split("_")[1]: self._upload_image(a),
+        )
+        img_btn.pack(side="right")
+
+        setattr(self, f"lbl_{img_attr}", img_preview)
+
     # ── 计算逻辑 ──
 
     def _get_float(self, entry: ctk.CTkEntry, field_name: str) -> Optional[float]:
@@ -535,6 +559,44 @@ class BDEApp(ctk.CTk):
                 f"请选择频率计算（Freq）的输出文件来读取 G_corr。"
             )
 
+    def _upload_image(self, species_key: str):
+        """上传分子结构图片"""
+        from tkinter import filedialog
+        path = filedialog.askopenfilename(
+            title=f"选择{species_key.upper()} 的分子结构图",
+            filetypes=[("Image", "*.png *.jpg *.jpeg *.gif *.bmp"), ("All files", "*.*")]
+        )
+        if not path:
+            return
+        try:
+            from PIL import Image, ImageTk
+            # 复制图片到 data/images/ 目录下持久存储
+            import shutil, hashlib
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "images")
+            os.makedirs(data_dir, exist_ok=True)
+            ext = os.path.splitext(path)[1] or ".png"
+            fname = f"{species_key}_{hashlib.md5(path.encode()).hexdigest()[:8]}{ext}"
+            dst = os.path.join(data_dir, fname)
+            if not os.path.exists(dst):
+                shutil.copy2(path, dst)
+
+            # 缩略图显示
+            pil_img = Image.open(dst)
+            pil_img.thumbnail((120, 90))
+            ctk_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=pil_img.size)
+
+            lbl_key = f"lbl_img_{species_key}"
+            lbl = getattr(self, lbl_key, None)
+            if lbl:
+                lbl.configure(image=ctk_img, text="")
+
+            # 记录路径
+            setattr(self, f"_img_{species_key}", dst)
+        except ImportError:
+            messagebox.showwarning("缺少依赖", "请安装 Pillow 库：pip install Pillow")
+        except Exception as e:
+            messagebox.showerror("图片上传失败", str(e))
+
     def _calculate_bde(self):
         name_rx = self.entry_name_rx.get().strip() or "RX"
         name_r  = self.entry_name_r.get().strip()  or "R·"
@@ -579,6 +641,13 @@ class BDEApp(ctk.CTk):
         self._current_result = None
         self._route_esp = ""
         self._route_gcorr = ""
+        self._img_rx = ""
+        self._img_r  = ""
+        self._img_x  = ""
+        for k in ("rx", "r", "x"):
+            lbl = getattr(self, f"lbl_img_{k}", None)
+            if lbl:
+                lbl.configure(image="", text="")
         self.btn_save.configure(state="disabled", fg_color="#A8A8AD", hover_color="#8E8E93")
 
     def _save_result(self):
@@ -589,6 +658,9 @@ class BDEApp(ctk.CTk):
             "name_rx": n1, "name_r": n2, "name_x": n3,
             "route_esp": self._route_esp,
             "route_gcorr": self._route_gcorr,
+            "img_rx": self._img_rx,
+            "img_r": self._img_r,
+            "img_x": self._img_x,
             "bde_kcal": self._current_result["bde_kcal"],
             "bde_kj": self._current_result["bde_kj"],
             "type": "single",
@@ -1188,6 +1260,30 @@ class BDEApp(ctk.CTk):
                              font=(FONT_MONO, 9), text_color=TEXT_TERTIARY, anchor="w",
                              justify="left", wraplength=520
                 ).pack(fill="x")
+
+        # ── 分子结构图 ──
+        img_keys = [("img_rx", "分子 RX"), ("img_r", "自由基 R·"), ("img_x", "自由基 X·")]
+        has_img = False
+        for ik, il in img_keys:
+            ip = rec.get(ik, "")
+            if ip and os.path.exists(ip):
+                if not has_img:
+                    img_card = ctk.CTkFrame(scroll_win, fg_color=CARD_BG, corner_radius=RADIUS_CARD)
+                    img_card.pack(fill="x", padx=PAD_INNER, pady=(PAD_INNER, 0))
+                    ctk.CTkLabel(img_card, text="分子结构",
+                                 font=(FONT_FAMILY, 12, "bold"), text_color=TEXT_PRIMARY
+                    ).pack(anchor="w", padx=PAD_INNER, pady=(PAD_INNER, PAD_COMPACT))
+                    has_img = True
+                try:
+                    from PIL import Image as PILImage
+                    pi = PILImage.open(ip)
+                    pi.thumbnail((160, 120))
+                    ci = ctk.CTkImage(light_image=pi, dark_image=pi, size=pi.size)
+                    ctk.CTkLabel(img_card, text=f"{il}:", font=FONT_REGULAR,
+                                 text_color=TEXT_SECONDARY).pack(anchor="w", padx=PAD_INNER)
+                    ctk.CTkLabel(img_card, text="", image=ci).pack(anchor="w", padx=PAD_INNER, pady=(0, PAD_COMPACT))
+                except Exception:
+                    pass
 
         # ── 运算过程 ──
         detail_card = ctk.CTkFrame(scroll_win, fg_color=CARD_BG, corner_radius=RADIUS_CARD)
