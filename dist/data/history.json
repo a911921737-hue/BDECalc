@@ -1,0 +1,13 @@
+[
+  {
+    "name_rx": "A",
+    "name_r": "B-S1",
+    "name_x": "X·",
+    "route_esp": "# M062X DEF2QZVP EM=GD3",
+    "route_gcorr": "# opt=calcall freq ub3lyp/6-31g(d) em=gd3",
+    "bde_kcal": 1652.877681872241,
+    "bde_kj": 6915.640220953457,
+    "type": "single",
+    "timestamp": "2026-06-06 20:42:45"
+  }
+]

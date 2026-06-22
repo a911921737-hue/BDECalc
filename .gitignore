@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# PyInstaller build
+build/
+dist/BDE计算器.exe
+
+# 数据文件（保留，用于备份）
+# data/history.json 保留不忽略
+
+# IDE
+.vscode/
+.idea/
