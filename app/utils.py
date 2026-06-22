@@ -66,12 +66,16 @@ def ensure_history_dir():
     os.makedirs(HISTORY_DIR, exist_ok=True)
 
 
-def save_to_history(record: dict):
+def save_to_history(record: dict, overwrite_idx: Optional[int] = None):
     """保存一条计算记录到历史"""
     ensure_history_dir()
     records = load_history()
-    record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    records.append(record)
+    if overwrite_idx is not None and 0 <= overwrite_idx < len(records):
+        record["timestamp"] = records[overwrite_idx].get("timestamp", "")
+        records[overwrite_idx] = record
+    else:
+        record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        records.append(record)
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
     return record["timestamp"]
